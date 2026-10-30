@@ -1,6 +1,31 @@
 'use strict';
 
-/* ส่งข้อมูลไปยัง Apps Script Web App (ทางเลือกที่ไม่ต้องใช้ service account) */
+/* ส่งข้อมูลไปยัง Apps Script Web App (ทางเลือกที่ไม่ต้องใช้ service account)
+ * ตั้งค่าได้ 2 ทาง: env (SHEET_WEBHOOK_URL / SHEET_WEBHOOK_SECRET)
+ * หรือไฟล์ data/sheet-webhook.json { "url": "...", "secret": "..." }
+ */
+
+const fs = require('node:fs');
+const path = require('node:path');
+
+const { DATA_DIR } = require('./db');
+
+function loadConfig() {
+  const url = process.env.SHEET_WEBHOOK_URL;
+  const secret = process.env.SHEET_WEBHOOK_SECRET;
+  if (url) return { url, secret };
+
+  try {
+    const file = path.join(DATA_DIR, 'sheet-webhook.json');
+    if (fs.existsSync(file)) {
+      const json = JSON.parse(fs.readFileSync(file, 'utf8'));
+      if (json && json.url) return { url: json.url, secret: json.secret || '' };
+    }
+  } catch (error) {
+    console.warn('[sheet-webhook] อ่าน config ไม่ได้:', error.message);
+  }
+  return null;
+}
 
 async function pushToWebhook(url, secret, tabs) {
   if (!url) throw new Error('ยังไม่ได้ตั้งค่า SHEET_WEBHOOK_URL');
@@ -33,4 +58,4 @@ async function pushToWebhook(url, secret, tabs) {
   return json;
 }
 
-module.exports = { pushToWebhook };
+module.exports = { loadConfig, pushToWebhook };

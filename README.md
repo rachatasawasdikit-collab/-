@@ -117,6 +117,7 @@ npm run seed     # สร้างข้อมูลตัวอย่างใ�
 | `GOOGLE_APPLICATION_CREDENTIALS` | path ของไฟล์คีย์ (ค่าเริ่มต้น `data/google-service-account.json`) |
 | `SHEET_WEBHOOK_URL` | URL ของ Apps Script Web app (ทางเลือกแทน service account) |
 | `SHEET_WEBHOOK_SECRET` | รหัสลับที่ตรงกับ `SECRET` ในสคริปต์ |
+| — | หรือเก็บไว้ใน `data/sheet-webhook.json` = `{ "url": "...", "secret": "..." }` (ไม่ต้องตั้ง env) |
 | `GOOGLE_SHARE_WITH` | อีเมลที่จะแชร์ชีตที่สร้างใหม่ให้ (สิทธิ์แก้ไข) |
 
 | `CORS_ORIGINS` | `https://rachatasawasdikit-collab.github.io` | รายการ origin ที่อนุญาตให้เว็บภายนอกเรียก API คั่นด้วยจุลภาค เช่น `https://rachatasawasdikit-collab.github.io` |

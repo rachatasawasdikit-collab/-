@@ -690,12 +690,9 @@ app.post('/api/teacher/activities/:id/export-sheet', requireRole('teacher'), asy
 
     const tabs = buildActivityTabs(activity.id);
 
-    if (process.env.SHEET_WEBHOOK_URL) {
-      const result = await sheetWebhook.pushToWebhook(
-        process.env.SHEET_WEBHOOK_URL,
-        process.env.SHEET_WEBHOOK_SECRET,
-        tabs
-      );
+    const webhook = sheetWebhook.loadConfig();
+    if (webhook) {
+      const result = await sheetWebhook.pushToWebhook(webhook.url, webhook.secret, tabs);
       return res.json({
         url: result.url || 'https://docs.google.com/spreadsheets',
         mode: 'apps-script',
