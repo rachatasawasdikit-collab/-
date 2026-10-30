@@ -28,19 +28,38 @@
   let base = readBase();
   let configPromise = null;
 
+  const loadFromConfig = async () => {
+    try {
+      const response = await nativeFetch('config.json', { cache: 'no-store' });
+      if (!response.ok) return;
+      const json = await response.json();
+      if (json && json.api) {
+        base = String(json.api).replace(/\/+$/, '');
+        localStorage.setItem(BASE_KEY, base);
+      }
+    } catch (error) {
+      /* ไม่มี config.json ก็ใช้โหมดสาธิตต่อ */
+    }
+  };
+
   if (!base) {
+    configPromise = loadFromConfig();
+  } else {
+    // มีค่าเก่าอยู่ — ตรวจก่อนว่ายังใช้ได้ ถ้าไม่ ให้กลับไปใช้ config.json ล่าสุด
     configPromise = (async () => {
       try {
-        const response = await nativeFetch('config.json', { cache: 'no-store' });
-        if (!response.ok) return;
-        const json = await response.json();
-        if (json && json.api) {
-          base = String(json.api).replace(/\/+$/, '');
-          localStorage.setItem(BASE_KEY, base);
-        }
+        const response = await nativeFetch(base + '/api/health', {
+          cache: 'no-store',
+          mode: 'cors',
+          signal: AbortSignal.timeout(4000),
+        });
+        if (response.ok) return;
       } catch (error) {
-        /* ไม่มี config.json ก็ใช้โหมดสาธิตต่อ */
+        /* ใช้ไม่ได้ */
       }
+      base = '';
+      localStorage.removeItem(BASE_KEY);
+      await loadFromConfig();
     })();
   }
 
