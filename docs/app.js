@@ -528,6 +528,7 @@ async function renderTeacherHome() {
         </div>
         <div class="page-actions">
           <button class="btn btn-primary" data-action="open-create-class">${icon('plus')}สร้างห้องเรียน</button>
+          <button class="btn btn-danger-ghost" data-action="delete-account">${icon('x')}ลบบัญชีของฉัน</button>
         </div>
       </div>
       <div class="stats-grid">
@@ -551,6 +552,49 @@ async function renderTeacherHome() {
       btn.addEventListener('click', openCreateClassModal);
     });
   }
+  appEl.querySelectorAll('[data-action="delete-account"]').forEach((btn) => {
+    btn.addEventListener('click', openDeleteAccountModal);
+  });
+}
+
+function openDeleteAccountModal() {
+  openModal(`
+    <form id="delete-account-form">
+      ${modalHeader('ลบบัญชีครู', 'ลบบัญชีและข้อมูลทั้งหมดของคุณถาวร')}
+      <div class="modal-body form-grid">
+        <p class="muted small">
+          การลบจะลบห้องเรียน ใบกิจกรรม งานที่ส่ง คะแนน และไฟล์แนบทั้งหมดของคุณ — ย้อนกลับไม่ได้
+        </p>
+        <div class="field">
+          <label for="delete-account-password">ยืนยันด้วยรหัสผ่าน</label>
+          <input id="delete-account-password" name="password" type="password" autocomplete="current-password" placeholder="รหัสผ่านของคุณ" required />
+        </div>
+      </div>
+      <div class="modal-foot">
+        <button type="button" class="btn btn-ghost" data-close>ยกเลิก</button>
+        <button type="submit" class="btn btn-danger-ghost">${icon('x')}ลบบัญชีถาวร</button>
+      </div>
+    </form>
+  `);
+
+  const form = document.getElementById('delete-account-form');
+  form.addEventListener('submit', async (event) => {
+    event.preventDefault();
+    const button = form.querySelector('button[type="submit"]');
+    button.disabled = true;
+    try {
+      const password = new FormData(form).get('password');
+      await api('/api/account', { method: 'DELETE', body: { password } });
+      closeModal();
+      state.user = null;
+      toast('ลบบัญชีเรียบร้อย');
+      go('#/');
+      renderAuth();
+    } catch (error) {
+      setFormError(form, error.message);
+      button.disabled = false;
+    }
+  });
 }
 
 /* -------------------------- teacher class ------------------------- */

@@ -486,6 +486,27 @@
     return new Response(null, { status: 204 });
   });
 
+  route('DELETE', /^\/api\/account$/, (user, body) => {
+    if (!user) return notLoggedIn();
+    if (user.role !== 'teacher') return wrongRole();
+    if (user.password !== String(body.password || '')) return fail(400, 'รหัสผ่านไม่ถูกต้อง');
+
+    const classIds = db.classes.filter((c) => c.teacher_id === user.id).map((c) => c.id);
+    const activityIds = db.activities.filter((a) => classIds.includes(a.class_id)).map((a) => a.id);
+    db.submissions = db.submissions.filter((s) => !activityIds.includes(s.activity_id));
+    db.submission_scores = db.submission_scores.filter((row) =>
+      db.submissions.some((s) => s.id === row.submission_id)
+    );
+    db.activities = db.activities.filter((a) => !classIds.includes(a.class_id));
+    db.rubric_items = db.rubric_items.filter((item) => db.activities.some((a) => a.id === item.activity_id));
+    db.members = db.members.filter((m) => !classIds.includes(m.class_id));
+    db.classes = db.classes.filter((c) => !classIds.includes(c.id));
+    db.users = db.users.filter((u) => u.id !== user.id);
+    setSession(null);
+    save(db);
+    return new Response(null, { status: 204 });
+  });
+
   route('GET', /^\/api\/teacher\/classes$/, (user) => {
     if (!user) return notLoggedIn();
     if (user.role !== 'teacher') return wrongRole();

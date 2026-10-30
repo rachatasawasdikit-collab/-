@@ -259,6 +259,32 @@ app.post('/api/auth/logout', (req, res) => {
 
 /* --------------------------- teacher ---------------------------- */
 
+app.delete('/api/account', requireRole('teacher'), (req, res) => {
+  const password = String((req.body || {}).password || '');
+  const user = get('SELECT * FROM users WHERE id = ?', req.user.id);
+  if (!user) return res.status(404).json({ error: 'ไม่พบบัญชีนี้' });
+  if (!verifyPassword(password, user.password_hash)) {
+    return res.status(400).json({ error: 'รหัสผ่านไม่ถูกต้อง' });
+  }
+
+  const files = all(
+    `SELECT s.file_name FROM submissions s
+       JOIN activities a ON a.id = s.activity_id
+       JOIN classes c ON c.id = a.class_id
+      WHERE c.teacher_id = ? AND s.file_name IS NOT NULL`,
+    user.id
+  );
+
+  run('DELETE FROM users WHERE id = ?', user.id);
+
+  for (const row of files) {
+    fs.rmSync(path.join(UPLOAD_DIR, path.basename(row.file_name)), { force: true });
+  }
+
+  destroySession(req, res);
+  res.status(204).end();
+});
+
 app.get('/api/teacher/classes', requireRole('teacher'), (req, res) => {
   const classes = all(
     `SELECT c.*,
