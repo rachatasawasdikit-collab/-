@@ -100,7 +100,7 @@ npm run seed     # สร้างข้อมูลตัวอย่างใ�
 | `PORT` | `3000` | พอร์ตเซิร์ฟเวอร์ |
 | `HOST` | `0.0.0.0` | อินเทอร์เฟซที่รับการเชื่อมต่อ |
 | `DATA_DIR` | `./data` | ตำแหน่งฐานข้อมูลและไฟล์แนบ |
-| `CORS_ORIGINS` | (ว่าง) | รายการ origin ที่อนุญาตให้เว็บภายนอกเรียก API คั่นด้วยจุลภาค เช่น `https://rachatasawasdikit-collab.github.io` |
+| `CORS_ORIGINS` | `https://rachatasawasdikit-collab.github.io` | รายการ origin ที่อนุญาตให้เว็บภายนอกเรียก API คั่นด้วยจุลภาค เช่น `https://rachatasawasdikit-collab.github.io` |
 
 ตัวอย่าง: `PORT=8080 npm start`
 

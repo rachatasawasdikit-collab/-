@@ -27,7 +27,8 @@ app.disable('x-powered-by');
 
 /* ----------------------------- CORS (Pages) ----------------------------- */
 
-const CORS_ORIGINS = String(process.env.CORS_ORIGINS || '')
+const DEFAULT_PAGES_ORIGIN = 'https://rachatasawasdikit-collab.github.io';
+const CORS_ORIGINS = String(process.env.CORS_ORIGINS || DEFAULT_PAGES_ORIGIN)
   .split(',')
   .map((item) => item.trim())
   .filter(Boolean);
