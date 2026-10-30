@@ -369,7 +369,7 @@ app.post('/api/teacher/classes/:id/students/import', requireRole('teacher'), (re
   const klass = teacherClass(req.params.id, req.user.id);
   if (!klass) return res.status(404).json({ error: 'ไม่พบห้องเรียนนี้' });
 
-  const raw = Array.isArray(req.body.names) ? req.body.names : [];
+  const raw = Array.isArray((req.body || {}).names) ? req.body.names : [];
   const names = [];
   const seen = new Set();
   for (const item of raw.slice(0, 400)) {
@@ -441,8 +441,9 @@ app.get('/api/classes/:code/roster', (req, res) => {
 });
 
 app.post('/api/student/login-name', (req, res) => {
-  const code = str(req.body.code, 12).toUpperCase();
-  const studentId = Number(req.body.student_id);
+  const body = req.body || {};
+  const code = str(body.code, 12).toUpperCase();
+  const studentId = Number(body.student_id);
   const klass = get('SELECT id, name, code FROM classes WHERE code = ?', code);
   if (!klass) return res.status(404).json({ error: 'ไม่พบห้องเรียนที่ใช้รหัสนี้' });
   if (!isMember(klass.id, studentId)) {

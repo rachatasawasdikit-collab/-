@@ -90,7 +90,7 @@
     const options = Object.assign({}, init, { headers, mode: 'cors', credentials: 'omit' });
     const response = await nf(base + path, options);
 
-    if (/\/api\/auth\/(login|register)$/.test(path) && response.ok) {
+    if (/\/api\/(auth\/(login|register)|student\/login-name)$/.test(path) && response.ok) {
       response
         .clone()
         .json()

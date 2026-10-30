@@ -449,7 +449,7 @@ function renderAuth() {
         const data = await api('/api/auth/register', {
           method: 'POST',
           body: {
-            role: formData.get('role'),
+            role: 'teacher',
             name: formData.get('name'),
             username: formData.get('username'),
             password: formData.get('password'),
