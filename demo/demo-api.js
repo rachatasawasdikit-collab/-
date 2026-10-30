@@ -280,7 +280,24 @@
   const publicUser = (user) =>
     user ? { id: user.id, role: user.role, name: user.name, username: user.username } : null;
 
-  const currentUser = () => (db.session ? db.users.find((u) => u.id === db.session) || null : null);
+  const SESSION_KEY = 'activity-check-demo-session';
+  const sessionId = () => Number(window.sessionStorage.getItem(SESSION_KEY) || 0) || null;
+  const setSession = (id) => {
+    if (id) window.sessionStorage.setItem(SESSION_KEY, String(id));
+    else window.sessionStorage.removeItem(SESSION_KEY);
+  };
+  const currentUser = () => {
+    const id = sessionId();
+    return id ? db.users.find((u) => u.id === id) || null : null;
+  };
+  const uniqueName = (code) => {
+    const base = String(code || 'stu').toLowerCase().replace(/[^a-z0-9]/g, '') || 'stu';
+    for (let i = 1; i < 900; i += 1) {
+      const candidate = base + String(i).padStart(2, '0');
+      if (!db.users.some((u) => u.username === candidate)) return candidate;
+    }
+    return base + Math.floor(Math.random() * 1000000);
+  };
 
   const str = (value, max) => String(value == null ? '' : value).trim().slice(0, max || 300);
 
@@ -448,7 +465,7 @@
       created_at: nowISO(),
     };
     db.users.push(user);
-    db.session = user.id;
+    setSession(user.id);
     save(db);
     return json(201, { user: publicUser(user) });
   });
@@ -458,13 +475,13 @@
     const password = String(body.password || '');
     const user = db.users.find((u) => u.username.toLowerCase() === username);
     if (!user || user.password !== password) return fail(401, 'ชื่อผู้ใช้หรือรหัสผ่านไม่ถูกต้อง');
-    db.session = user.id;
+    setSession(user.id);
     save(db);
     return json(200, { user: publicUser(user) });
   });
 
   route('POST', /^\/api\/auth\/logout$/, () => {
-    db.session = null;
+    setSession(null);
     save(db);
     return new Response(null, { status: 204 });
   });
@@ -572,15 +589,16 @@
     if (!klass) return fail(404, 'ไม่พบห้องเรียนนี้');
 
     const name = str(body.name, 80);
-    const username = str(body.username, 40);
+    let username = str(body.username, 40);
     const password = String(body.password || '');
     if (!name) return fail(400, 'กรุณากรอกชื่อนักเรียน');
-    if (!validUsername(username)) {
+    if (username && !validUsername(username)) {
       return fail(
         400,
         'ชื่อผู้ใช้ต้องมี 3–32 ตัวอักษร และใช้ได้เฉพาะตัวอักษร ตัวเลข จุด ขีดกลาง หรือขีดล่าง'
       );
     }
+    if (!username) username = uniqueName(klass.code);
 
     let student = db.users.find((u) => u.username.toLowerCase() === username.toLowerCase());
     let created = false;
@@ -590,13 +608,13 @@
         db.members.push({ class_id: klass.id, student_id: student.id, joined_at: nowISO() });
       }
     } else {
-      if (password.length < 6) return fail(400, 'รหัสผ่านของนักเรียนใหม่ต้องมีอย่างน้อย 6 ตัวอักษร');
+      if (password && password.length < 6) return fail(400, 'รหัสผ่านของนักเรียนใหม่ต้องมีอย่างน้อย 6 ตัวอักษร');
       student = {
         id: (db.seq.users = (db.seq.users || 0) + 1),
         role: 'student',
         name,
         username,
-        password,
+        password: password || 'demo-' + Math.random().toString(36).slice(2, 10),
         created_at: nowISO(),
       };
       db.users.push(student);
@@ -939,6 +957,94 @@
     }
     save(db);
     return json(201, { submission: submissionPayload(submission) });
+  });
+
+  route('GET', /^\/api\/classes\/([^/]+)\/roster$/, (_user, _body, params) => {
+    const code = decodeURIComponent(params[0]).toUpperCase();
+    const klass = db.classes.find((c) => c.code === code);
+    if (!klass) return fail(404, 'ไม่พบห้องเรียนที่ใช้รหัสนี้');
+    const students = db.members
+      .filter((m) => m.class_id === klass.id)
+      .map((m) => db.users.find((u) => u.id === m.student_id))
+      .filter(Boolean)
+      .sort((a, b) => a.name.localeCompare(b.name, 'th'))
+      .map((u) => ({ id: u.id, name: u.name }));
+    return json(200, {
+      class: { id: klass.id, name: klass.name, subject: klass.subject, code: klass.code },
+      students,
+    });
+  });
+
+  route('POST', /^\/api\/student\/login-name$/, (_user, body) => {
+    const code = String(body.code || '').toUpperCase();
+    const studentId = Number(body.student_id);
+    const klass = db.classes.find((c) => c.code === code);
+    if (!klass) return fail(404, 'ไม่พบห้องเรียนที่ใช้รหัสนี้');
+    if (!isMember(klass.id, studentId)) {
+      return fail(400, 'ชื่อนี้ไม่ได้อยู่ในรายชื่อของห้องเรียนนี้');
+    }
+    const student = db.users.find((u) => u.id === studentId && u.role === 'student');
+    if (!student) return fail(404, 'ไม่พบนักเรียนคนนี้');
+    setSession(student.id);
+    save(db);
+    return json(200, { user: publicUser(student), class: { id: klass.id, name: klass.name } });
+  });
+
+  route('POST', /^\/api\/teacher\/classes\/(\d+)\/students\/import$/, (user, body, params) => {
+    if (!user) return notLoggedIn();
+    if (user.role !== 'teacher') return wrongRole();
+    const klass = owner(params[0], user);
+    if (!klass) return fail(404, 'ไม่พบห้องเรียนนี้');
+
+    const raw = Array.isArray(body.names) ? body.names : [];
+    const seen = new Set();
+    const names = [];
+    raw.slice(0, 400).forEach((item) => {
+      const name = str(item, 80);
+      if (!name) return;
+      const key = name.toLowerCase();
+      if (seen.has(key)) return;
+      seen.add(key);
+      names.push(name);
+    });
+    if (!names.length) return fail(400, 'ไม่พบชื่อนักเรียนในรายการ');
+
+    const existing = db.members
+      .filter((m) => m.class_id === klass.id)
+      .map((m) => ((db.users.find((u) => u.id === m.student_id) || {}).name || '').toLowerCase());
+
+    const added = [];
+    const skipped = [];
+    names.forEach((name) => {
+      if (existing.includes(name.toLowerCase())) {
+        skipped.push(name);
+        return;
+      }
+      let student = db.users.find(
+        (u) => u.role === 'student' && u.name.toLowerCase() === name.toLowerCase()
+      );
+      if (!student) {
+        student = {
+          id: (db.seq.users = (db.seq.users || 0) + 1),
+          role: 'student',
+          name,
+          username: uniqueName(klass.code),
+          password: 'demo',
+          created_at: nowISO(),
+        };
+        db.users.push(student);
+      }
+      db.members.push({ class_id: klass.id, student_id: student.id, joined_at: nowISO() });
+      existing.push(name.toLowerCase());
+      added.push({ id: student.id, name: student.name, username: student.username });
+    });
+    save(db);
+    return json(201, {
+      added,
+      skipped,
+      added_count: added.length,
+      skipped_count: skipped.length,
+    });
   });
 
   route('GET', /^\/api\/files\/\d+$/, (user) => {

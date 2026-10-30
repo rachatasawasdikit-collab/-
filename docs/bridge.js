@@ -43,7 +43,7 @@
     if (!path || !base) return previousFetch(input, init);
 
     const headers = new Headers((init && init.headers) || {});
-    const token = localStorage.getItem(TOKEN_KEY);
+    const token = sessionStorage.getItem(TOKEN_KEY);
     if (token) headers.set('Authorization', 'Bearer ' + token);
 
     const options = Object.assign({}, init, { headers, mode: 'cors', credentials: 'omit' });
@@ -54,12 +54,12 @@
         .clone()
         .json()
         .then((data) => {
-          if (data && data.token) localStorage.setItem(TOKEN_KEY, data.token);
+          if (data && data.token) sessionStorage.setItem(TOKEN_KEY, data.token);
         })
         .catch(() => {});
     }
     if (/\/api\/auth\/logout$/.test(path)) {
-      localStorage.removeItem(TOKEN_KEY);
+      sessionStorage.removeItem(TOKEN_KEY);
     }
     return response;
   };
@@ -78,7 +78,7 @@
       const href = anchor.getAttribute('href');
       try {
         const headers = {};
-        const token = localStorage.getItem(TOKEN_KEY);
+        const token = sessionStorage.getItem(TOKEN_KEY);
         if (token) headers.Authorization = 'Bearer ' + token;
         const response = await nf(base + href, { headers, mode: 'cors', credentials: 'omit' });
         if (!response.ok) {
@@ -126,7 +126,7 @@
     button.addEventListener('click', () => {
       if (base) {
         localStorage.removeItem(BASE_KEY);
-        localStorage.removeItem(TOKEN_KEY);
+        sessionStorage.removeItem(TOKEN_KEY);
         window.location.reload();
         return;
       }

@@ -195,6 +195,153 @@ function renderErrorPage(error) {
 
 /* ------------------------------- auth ------------------------------ */
 
+/* ---------------------------- auth panel --------------------------- */
+
+function authPanelHtml(mode) {
+  const tabs = `
+    <div class="segmented" role="tablist">
+      <button type="button" data-auth-tab="login" class="${mode === 'login' ? 'active' : ''}">ครูเข้าสู่ระบบ</button>
+      <button type="button" data-auth-tab="student" class="${mode === 'student' ? 'active' : ''}">นักเรียน</button>
+      <button type="button" data-auth-tab="register" class="${mode === 'register' ? 'active' : ''}">สมัคร (ครู)</button>
+    </div>`;
+
+  if (mode === 'student') {
+    return (
+      tabs +
+      `
+      <h2>เข้าเรียน</h2>
+      <p class="sub">กรอกรหัสห้องเรียน แล้วเลือกชื่อของตัวเอง — ไม่ต้องสมัคร ไม่ต้องใช้รหัสผ่าน</p>
+      <form id="student-auth-form" class="auth-form">
+        <div class="field">
+          <label for="student-class-code">รหัสห้องเรียน</label>
+          <div class="inline-field">
+            <input id="student-class-code" name="code" placeholder="เช่น SCI501" maxlength="12" autocomplete="off" required />
+            <button type="button" class="btn btn-ghost" id="load-roster">ดูรายชื่อ</button>
+          </div>
+        </div>
+        <div class="field" id="roster-field" hidden>
+          <label for="student-pick">ชื่อของฉัน</label>
+          <select id="student-pick" name="student_id" required></select>
+        </div>
+        <button class="btn btn-primary btn-lg btn-block" type="submit" disabled>เข้าเรียน</button>
+      </form>`
+    );
+  }
+
+  if (mode === 'register') {
+    return (
+      tabs +
+      `
+      <h2>สมัครบัญชีครู</h2>
+      <p class="sub">สำหรับครูผู้สอนเท่านั้น — นักเรียนเข้าเรียนด้วยชื่อได้เลย</p>
+      <form id="register-form" class="auth-form">
+        <div class="field">
+          <label for="register-name">ชื่อ-นามสกุล</label>
+          <input id="register-name" name="name" autocomplete="name" placeholder="เช่น ครูสมชาย ใจดี" required />
+        </div>
+        <div class="field">
+          <label for="register-username">ชื่อผู้ใช้</label>
+          <input id="register-username" name="username" autocomplete="username" placeholder="3–32 ตัวอักษร" required />
+        </div>
+        <div class="field">
+          <label for="register-password">รหัสผ่าน</label>
+          <input id="register-password" name="password" type="password" autocomplete="new-password" placeholder="อย่างน้อย 6 ตัวอักษร" required />
+        </div>
+        <button class="btn btn-primary btn-lg btn-block" type="submit">สมัครใช้งาน</button>
+      </form>`
+    );
+  }
+
+  return (
+    tabs +
+    `
+    <h2>ยินดีต้อนรับกลับ</h2>
+    <p class="sub">เข้าสู่ระบบสำหรับครูผู้สอน</p>
+    <form id="login-form" class="auth-form">
+      <div class="field">
+        <label for="login-username">ชื่อผู้ใช้</label>
+        <input id="login-username" name="username" autocomplete="username" placeholder="เช่น teacher" required />
+      </div>
+      <div class="field">
+        <label for="login-password">รหัสผ่าน</label>
+        <input id="login-password" name="password" type="password" autocomplete="current-password" placeholder="รหัสผ่านของคุณ" required />
+      </div>
+      <button class="btn btn-primary btn-lg btn-block" type="submit">เข้าสู่ระบบ</button>
+    </form>`
+  );
+}
+
+function wireStudentLogin() {
+  const form = document.getElementById('student-auth-form');
+  if (!form) return;
+
+  const codeInput = form.querySelector('#student-class-code');
+  const rosterField = form.querySelector('#roster-field');
+  const pick = form.querySelector('#student-pick');
+  const submit = form.querySelector('button[type="submit"]');
+  const loadButton = form.querySelector('#load-roster');
+  let loadedCode = '';
+
+  const loadRoster = async () => {
+    const code = String(codeInput.value || '').trim().toUpperCase();
+    if (!code) return;
+    loadButton.disabled = true;
+    try {
+      const data = await api('/api/classes/' + encodeURIComponent(code) + '/roster');
+      loadedCode = code;
+      if (!data.students.length) {
+        rosterField.hidden = true;
+        submit.disabled = true;
+        setFormError(form, 'ห้องนี้ยังไม่มีรายชื่อนักเรียน ให้ครูเพิ่มรายชื่อก่อน');
+        return;
+      }
+      pick.innerHTML =
+        '<option value="">— เลือกชื่อของฉัน —</option>' +
+        data.students
+          .map((student) => '<option value="' + student.id + '">' + esc(student.name) + '</option>')
+          .join('');
+      rosterField.hidden = false;
+      submit.disabled = false;
+      setFormError(form, '');
+    } catch (error) {
+      rosterField.hidden = true;
+      submit.disabled = true;
+      setFormError(form, error.message);
+    } finally {
+      loadButton.disabled = false;
+    }
+  };
+
+  loadButton.addEventListener('click', loadRoster);
+  codeInput.addEventListener('change', () => {
+    if (codeInput.value.trim()) loadRoster();
+  });
+
+  form.addEventListener('submit', async (event) => {
+    event.preventDefault();
+    if (!pick.value) {
+      setFormError(form, 'กรุณาเลือกชื่อของตัวเอง');
+      return;
+    }
+    submit.disabled = true;
+    submit.classList.add('btn-loading');
+    try {
+      const data = await api('/api/student/login-name', {
+        method: 'POST',
+        body: { code: loadedCode, student_id: Number(pick.value) },
+      });
+      state.user = data.user;
+      toast('ยินดีต้อนรับ ' + data.user.name);
+      go('#/student');
+    } catch (error) {
+      setFormError(form, error.message);
+    } finally {
+      submit.disabled = false;
+      submit.classList.remove('btn-loading');
+    }
+  });
+}
+
 function renderAuth() {
   const mode = state.authMode;
   appEl.innerHTML = `
@@ -242,61 +389,11 @@ function renderAuth() {
           </div>
         </div>
       </section>
-      <section class="auth-panel">
+            <section class="auth-panel">
         <div class="auth-box">
-          <div class="segmented" role="tablist">
-            <button type="button" data-auth-tab="login" class="${mode === 'login' ? 'active' : ''}">เข้าสู่ระบบ</button>
-            <button type="button" data-auth-tab="register" class="${mode === 'register' ? 'active' : ''}">สมัครใช้งาน</button>
-          </div>
-          ${
-            mode === 'login'
-              ? `<h2>ยินดีต้อนรับกลับ</h2>
-                 <p class="sub">เข้าสู่ระบบเพื่อตรวจหรือส่งใบกิจกรรม</p>
-                 <form id="login-form" class="auth-form">
-                   <div class="field">
-                     <label for="login-username">ชื่อผู้ใช้</label>
-                     <input id="login-username" name="username" autocomplete="username" placeholder="เช่น teacher หรือ student01" required />
-                   </div>
-                   <div class="field">
-                     <label for="login-password">รหัสผ่าน</label>
-                     <input id="login-password" name="password" type="password" autocomplete="current-password" placeholder="รหัสผ่านของคุณ" required />
-                   </div>
-                   <button class="btn btn-primary btn-lg btn-block" type="submit">เข้าสู่ระบบ</button>
-                 </form>
-                 <p class="auth-switch">ยังไม่มีบัญชี? <button type="button" data-auth-tab="register">สมัครใช้งานฟรี</button></p>`
-              : `<h2>สร้างบัญชีใหม่</h2>
-                 <p class="sub">เลือกประเภทผู้ใช้ แล้วเริ่มจัดการใบกิจกรรมได้เลย</p>
-                 <form id="register-form" class="auth-form">
-                   <div class="radio-cards">
-                     <label class="radio-card">
-                       <input type="radio" name="role" value="teacher" ${state.registerRole !== 'student' ? 'checked' : ''} />
-                       <span class="mark">${icon('check')}</span>
-                       <span>ครูผู้สอน</span>
-                     </label>
-                     <label class="radio-card">
-                       <input type="radio" name="role" value="student" ${state.registerRole === 'student' ? 'checked' : ''} />
-                       <span class="mark">${icon('check')}</span>
-                       <span>นักเรียน</span>
-                     </label>
-                   </div>
-                   <div class="field">
-                     <label for="register-name">ชื่อ-นามสกุล</label>
-                     <input id="register-name" name="name" autocomplete="name" placeholder="เช่น ครูสมชาย ใจดี" required />
-                   </div>
-                   <div class="field">
-                     <label for="register-username">ชื่อผู้ใช้</label>
-                     <input id="register-username" name="username" autocomplete="username" placeholder="3–32 ตัวอักษร" required />
-                   </div>
-                   <div class="field">
-                     <label for="register-password">รหัสผ่าน</label>
-                     <input id="register-password" name="password" type="password" autocomplete="new-password" placeholder="อย่างน้อย 6 ตัวอักษร" required />
-                   </div>
-                   <button class="btn btn-primary btn-lg btn-block" type="submit">สมัครใช้งาน</button>
-                 </form>
-                 <p class="auth-switch">มีบัญชีอยู่แล้ว? <button type="button" data-auth-tab="login">เข้าสู่ระบบ</button></p>`
-          }
+          ${authPanelHtml(mode)}
           <p class="auth-note">
-            ครูสามารถสร้างบัญชีนักเรียนให้ทั้งห้องได้ในหน้าห้องเรียน หรือให้นักเรียนสมัครเองแล้วใช้รหัสห้องเรียนเพื่อเข้าร่วม
+            ครูสมัครบัญชีเองได้ตามปกติ ส่วนนักเรียนไม่ต้องสมัคร — เข้าห้องด้วยรหัสแล้วเลือกชื่อของตัวเอง
           </p>
         </div>
       </section>
@@ -369,6 +466,8 @@ function renderAuth() {
       }
     });
   }
+
+  wireStudentLogin();
 }
 
 /* --------------------------- teacher home -------------------------- */
@@ -1172,55 +1271,156 @@ function openCreateClassModal() {
 function openAddStudentModal(klass) {
   openModal(`
     <form id="add-student-form">
-      ${modalHeader('เพิ่มนักเรียน', `เพิ่มบัญชีนักเรียนเข้าห้อง ${klass.name}`)}
+      ${modalHeader('เพิ่มนักเรียน', 'ห้อง ' + klass.name + ' · รหัส ' + klass.code)}
       <div class="modal-body form-grid">
         <div class="field">
-          <label for="student-name">ชื่อ-นามสกุล</label>
-          <input id="student-name" name="name" placeholder="เช่น นภัสสร ใจดี" required maxlength="80" />
+          <label for="student-name">ชื่อ-นามสกุล (ทีละคน)</label>
+          <input id="student-name" name="name" placeholder="เช่น นภัสสร ใจดี" maxlength="80" />
+          <span class="hint">นักเรียนไม่ต้องสมัคร — เข้าห้องด้วยรหัส ${esc(klass.code)} แล้วเลือกชื่อตัวเอง</span>
         </div>
         <div class="field">
-          <label for="student-username">ชื่อผู้ใช้</label>
-          <input id="student-username" name="username" placeholder="เช่น student01" required maxlength="32" />
+          <label for="bulk-names">หรือวางรายชื่อหลายคน (บรรทัดละ 1 ชื่อ)</label>
+          <textarea id="bulk-names" name="bulk" rows="4" placeholder="นภัสสร ใจดี&#10;กันต์ธีร์ แสงทอง"></textarea>
         </div>
-        <div class="field">
-          <label for="student-password">รหัสผ่านเริ่มต้น</label>
-          <input id="student-password" name="password" type="password" placeholder="อย่างน้อย 6 ตัวอักษร" />
-          <span class="hint">ถ้ามีบัญชีนักเรียนชื่อผู้ใช้นี้อยู่แล้ว ระบบจะเพิ่มเข้าห้องเรียนโดยไม่สร้างบัญชีใหม่</span>
+        <div class="file-drop" id="roster-drop" role="button" tabindex="0">
+          ${icon('download')}
+          <strong>ลากไฟล์รายชื่อมาวาง หรือคลิกเพื่อเลือกไฟล์</strong>
+          <span>รองรับ CSV / TXT / Excel (.xlsx) — ระบบใช้คอลัมน์แรกเป็นชื่อ</span>
+          <input id="roster-file" type="file" accept=".csv,.txt,.xlsx,.xls" hidden />
         </div>
-        <div class="file-drop" style="cursor:default">
-          ${icon('key')}
-          <strong>หรือให้นักเรียนเข้าร่วมเอง</strong>
-          <span>ใช้รหัสห้องเรียน ${esc(klass.code)}</span>
-        </div>
+        <p class="muted small" id="roster-status"></p>
       </div>
       <div class="modal-foot">
         <button type="button" class="btn btn-ghost" data-close>ยกเลิก</button>
-        <button type="submit" class="btn btn-primary">${icon('plus')}เพิ่มนักเรียน</button>
+        <button type="submit" class="btn btn-primary">${icon('plus')}เพิ่มเข้าห้อง</button>
       </div>
     </form>
   `);
+
   const form = document.getElementById('add-student-form');
+  const bulk = form.querySelector('#bulk-names');
+  const drop = form.querySelector('#roster-drop');
+  const fileInput = form.querySelector('#roster-file');
+  const status = form.querySelector('#roster-status');
+
+  const setStatus = (message) => {
+    status.textContent = message || '';
+  };
+
+  const applyNames = (names) => {
+    if (!names.length) {
+      setStatus('ไม่พบชื่อในไฟล์ — ลองตรวจว่าคอลัมน์แรกเป็นชื่อนักเรียน');
+      return;
+    }
+    bulk.value = names.join('\n');
+    setStatus('พบ ' + names.length + ' ชื่อ — ตรวจแก้ได้ในช่องด้านบนก่อนกดเพิ่ม');
+  };
+
+  const loadFile = async (file) => {
+    if (!file) return;
+    setStatus('กำลังอ่านไฟล์...');
+    try {
+      applyNames(await readRosterFile(file));
+    } catch (error) {
+      setStatus(error.message);
+    }
+  };
+
+  fileInput.addEventListener('change', () => loadFile(fileInput.files && fileInput.files[0]));
+
+  const openPicker = () => fileInput.click();
+  drop.addEventListener('click', (event) => {
+    if (event.target !== fileInput) openPicker();
+  });
+  drop.addEventListener('keydown', (event) => {
+    if (event.key === 'Enter' || event.key === ' ') {
+      event.preventDefault();
+      openPicker();
+    }
+  });
+  drop.addEventListener('dragover', (event) => {
+    event.preventDefault();
+    drop.classList.add('is-over');
+  });
+  drop.addEventListener('dragleave', () => drop.classList.remove('is-over'));
+  drop.addEventListener('drop', (event) => {
+    event.preventDefault();
+    drop.classList.remove('is-over');
+    loadFile(event.dataTransfer && event.dataTransfer.files && event.dataTransfer.files[0]);
+  });
+
   form.addEventListener('submit', async (event) => {
     event.preventDefault();
     const button = form.querySelector('button[type="submit"]');
     button.disabled = true;
     try {
       const fd = new FormData(form);
-      const data = await api(`/api/teacher/classes/${klass.id}/students`, {
-        method: 'POST',
-        body: {
-          name: fd.get('name'),
-          username: fd.get('username'),
-          password: fd.get('password'),
-        },
-      });
-      closeModal();
-      toast(data.created ? 'สร้างบัญชีและเพิ่มนักเรียนสำเร็จ' : 'เพิ่มนักเรียนเข้าห้องเรียนสำเร็จ');
+      const single = String(fd.get('name') || '').trim();
+      const names = parseRosterText(String(fd.get('bulk') || ''));
+      if (single) names.unshift(single);
+
+      if (!names.length) {
+        setFormError(form, 'กรุณากรอกชื่อ หรือแนบไฟล์รายชื่อ');
+        button.disabled = false;
+        return;
+      }
+
+      if (names.length === 1) {
+        const data = await api('/api/teacher/classes/' + klass.id + '/students', {
+          method: 'POST',
+          body: { name: names[0] },
+        });
+        closeModal();
+        toast(data.created ? 'เพิ่มนักเรียนสำเร็จ' : 'นักเรียนคนนี้อยู่ในห้องแล้ว');
+      } else {
+        const data = await api('/api/teacher/classes/' + klass.id + '/students/import', {
+          method: 'POST',
+          body: { names },
+        });
+        closeModal();
+        toast(
+          'เพิ่ม ' +
+            data.added_count +
+            ' คน' +
+            (data.skipped_count ? ' · ข้าม ' + data.skipped_count + ' คนที่มีอยู่แล้ว' : '')
+        );
+      }
       renderTeacherClass(klass.id);
     } catch (error) {
       setFormError(form, error.message);
       button.disabled = false;
     }
+  });
+}
+
+function parseRosterText(text) {
+  return String(text || '')
+    .split(/\r?\n/)
+    .map((line) => line.split(/[,;\t]/)[0].trim())
+    .filter(Boolean);
+}
+
+async function readRosterFile(file) {
+  const name = String(file.name || '').toLowerCase();
+  if (name.endsWith('.xlsx') || name.endsWith('.xls')) {
+    const XLSX = await loadSheetJs();
+    const workbook = XLSX.read(await file.arrayBuffer(), { type: 'array' });
+    const sheet = workbook.Sheets[workbook.SheetNames[0]];
+    const rows = XLSX.utils.sheet_to_json(sheet, { header: 1, blankrows: false });
+    return rows.map((row) => (row && row[0] != null ? String(row[0]).trim() : '')).filter(Boolean);
+  }
+  return parseRosterText(await file.text());
+}
+
+function loadSheetJs() {
+  if (window.XLSX) return Promise.resolve(window.XLSX);
+  return new Promise((resolve, reject) => {
+    const script = document.createElement('script');
+    script.src = 'https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js';
+    script.onload = () => resolve(window.XLSX);
+    script.onerror = () =>
+      reject(new Error('โหลดตัวอ่าน Excel ไม่ได้ (ต้องต่ออินเทอร์เน็ต) — บันทึกเป็น CSV แล้วลองใหม่'));
+    document.head.appendChild(script);
   });
 }
 

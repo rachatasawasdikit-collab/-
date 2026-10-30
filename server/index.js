@@ -91,6 +91,19 @@ function newClassCode() {
   return crypto.randomBytes(4).toString('hex').toUpperCase();
 }
 
+function uniqueUsername(code) {
+  const base = String(code || 'stu').toLowerCase().replace(/[^a-z0-9]/g, '') || 'stu';
+  for (let i = 1; i < 900; i += 1) {
+    const candidate = base + String(i).padStart(2, '0');
+    if (!get('SELECT id FROM users WHERE username = ?', candidate)) return candidate;
+  }
+  return base + crypto.randomBytes(3).toString('hex');
+}
+
+function randomPassword() {
+  return crypto.randomBytes(9).toString('base64url');
+}
+
 function teacherClass(classId, teacherId) {
   return get('SELECT * FROM classes WHERE id = ? AND teacher_id = ?', classId, teacherId);
 }
@@ -312,12 +325,14 @@ app.post('/api/teacher/classes/:id/students', requireRole('teacher'), (req, res)
   if (!klass) return res.status(404).json({ error: 'ไม่พบห้องเรียนนี้' });
 
   const name = str(req.body.name, 80);
-  const username = str(req.body.username, 40);
-  const password = String(req.body.password || '');
+  let username = str(req.body.username, 40);
+  let password = String(req.body.password || '');
   if (!name) return res.status(400).json({ error: 'กรุณากรอกชื่อนักเรียน' });
-  if (!validUsername(username)) {
+  if (username && !validUsername(username)) {
     return res.status(400).json({ error: 'ชื่อผู้ใช้ต้องมี 3–32 ตัวอักษร และใช้ได้เฉพาะตัวอักษร ตัวเลข จุด ขีดกลาง หรือขีดล่าง' });
   }
+  if (!username) username = uniqueUsername(klass.code);
+  if (!password) password = randomPassword();
 
   let student = get('SELECT * FROM users WHERE username = ?', username);
   let created = false;
@@ -345,6 +360,95 @@ app.post('/api/teacher/classes/:id/students', requireRole('teacher'), (req, res)
     student: { id: student.id, name: student.name, username: student.username },
     created,
   });
+});
+
+app.post('/api/teacher/classes/:id/students/import', requireRole('teacher'), (req, res) => {
+  const klass = teacherClass(req.params.id, req.user.id);
+  if (!klass) return res.status(404).json({ error: 'ไม่พบห้องเรียนนี้' });
+
+  const raw = Array.isArray(req.body.names) ? req.body.names : [];
+  const names = [];
+  const seen = new Set();
+  for (const item of raw.slice(0, 400)) {
+    const name = str(item, 80);
+    if (!name) continue;
+    const key = name.toLowerCase();
+    if (seen.has(key)) continue;
+    seen.add(key);
+    names.push(name);
+  }
+  if (!names.length) return res.status(400).json({ error: 'ไม่พบชื่อนักเรียนในรายการ' });
+
+  const existing = all(
+    'SELECT u.name FROM members m JOIN users u ON u.id = m.student_id WHERE m.class_id = ?',
+    klass.id
+  ).map((row) => String(row.name).toLowerCase());
+
+  const added = [];
+  const skipped = [];
+
+  db.exec('BEGIN IMMEDIATE');
+  try {
+    for (const name of names) {
+      if (existing.includes(name.toLowerCase())) {
+        skipped.push(name);
+        continue;
+      }
+      let student = get(
+        "SELECT * FROM users WHERE role = 'student' AND lower(name) = lower(?) ORDER BY id LIMIT 1",
+        name
+      );
+      if (!student) {
+        const username = uniqueUsername(klass.code);
+        const result = run(
+          'INSERT INTO users (role, name, username, password_hash, created_at) VALUES (?, ?, ?, ?, ?)',
+          'student',
+          name,
+          username,
+          hashPassword(randomPassword()),
+          now()
+        );
+        student = get('SELECT * FROM users WHERE id = ?', Number(result.lastInsertRowid));
+      }
+      run('INSERT INTO members (class_id, student_id, joined_at) VALUES (?, ?, ?)', klass.id, student.id, now());
+      existing.push(name.toLowerCase());
+      added.push({ id: student.id, name: student.name, username: student.username });
+    }
+    db.exec('COMMIT');
+  } catch (error) {
+    db.exec('ROLLBACK');
+    throw error;
+  }
+
+  res.status(201).json({ added, skipped, added_count: added.length, skipped_count: skipped.length });
+});
+
+app.get('/api/classes/:code/roster', (req, res) => {
+  const code = str(req.params.code, 12).toUpperCase();
+  const klass = get('SELECT id, name, subject, code FROM classes WHERE code = ?', code);
+  if (!klass) return res.status(404).json({ error: 'ไม่พบห้องเรียนที่ใช้รหัสนี้' });
+  const students = all(
+    `SELECT u.id, u.name
+       FROM members m JOIN users u ON u.id = m.student_id
+      WHERE m.class_id = ?
+      ORDER BY u.name COLLATE NOCASE`,
+    klass.id
+  );
+  res.json({ class: klass, students });
+});
+
+app.post('/api/student/login-name', (req, res) => {
+  const code = str(req.body.code, 12).toUpperCase();
+  const studentId = Number(req.body.student_id);
+  const klass = get('SELECT id, name, code FROM classes WHERE code = ?', code);
+  if (!klass) return res.status(404).json({ error: 'ไม่พบห้องเรียนที่ใช้รหัสนี้' });
+  if (!isMember(klass.id, studentId)) {
+    return res.status(400).json({ error: 'ชื่อนี้ไม่ได้อยู่ในรายชื่อของห้องเรียนนี้' });
+  }
+  const student = get("SELECT * FROM users WHERE id = ? AND role = 'student'", studentId);
+  if (!student) return res.status(404).json({ error: 'ไม่พบนักเรียนคนนี้' });
+  const token = createSession(res, student.id);
+  res.json({ user: publicUser(student), token, class: { id: klass.id, name: klass.name } });
 });
 
 app.post('/api/teacher/classes/:id/activities', requireRole('teacher'), (req, res) => {

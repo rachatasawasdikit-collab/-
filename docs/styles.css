@@ -2304,3 +2304,28 @@ input[type="date"] {
     grid-template-columns: 1fr;
   }
 }
+
+/* ------------------------- roster / student login ------------------------- */
+.inline-field {
+  display: flex;
+  gap: 8px;
+  align-items: center;
+}
+
+.inline-field input {
+  flex: 1;
+  min-width: 0;
+}
+
+.file-drop.is-over {
+  border-color: var(--brand);
+  background: var(--brand-soft);
+}
+
+.file-drop input[type='file'] {
+  display: none;
+}
+
+.file-drop[role='button'] {
+  cursor: pointer;
+}
