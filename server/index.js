@@ -7,6 +7,8 @@ const express = require('express');
 const multer = require('multer');
 
 const { db, all, get, run, UPLOAD_DIR, ROOT } = require('./db');
+const sheets = require('./sheets');
+const { buildActivityTabs } = require('./sheet-data');
 const {
   hashPassword,
   verifyPassword,
@@ -676,6 +678,81 @@ app.post('/api/teacher/activities/:id/review', requireRole('teacher'), (req, res
   } catch (error) {
     db.exec('ROLLBACK');
     throw error;
+  }
+});
+
+app.post('/api/teacher/activities/:id/export-sheet', requireRole('teacher'), async (req, res) => {
+  try {
+    const access = activityAccess(req.params.id, req.user);
+    if (access.error) return res.status(access.error[0]).json({ error: access.error[1] });
+    const activity = access.activity;
+
+    let creds;
+    try {
+      creds = sheets.loadCredentials();
+    } catch (error) {
+      return res.status(400).json({ error: error.message });
+    }
+    if (!creds) {
+      return res.status(400).json({
+        error:
+          'ยังไม่มีคีย์ Google — วางไฟล์ service account ไว้ที่ data/google-service-account.json แล้วรีสตาร์ทเซิร์ฟเวอร์',
+      });
+    }
+
+    const token = await sheets.getAccessToken(creds);
+    const tabs = buildActivityTabs(activity.id);
+    const existing = get('SELECT * FROM sheet_exports WHERE activity_id = ?', activity.id);
+
+    let spreadsheetId;
+    let url;
+    if (existing) {
+      spreadsheetId = existing.spreadsheet_id;
+      url = existing.url;
+      await sheets.clearTabs(
+        token,
+        spreadsheetId,
+        tabs.map((tab) => tab.title)
+      );
+    } else {
+      const created = await sheets.createSpreadsheet(
+        token,
+        'ผลตรวจ ' + activity.title,
+        tabs.map((tab) => tab.title)
+      );
+      spreadsheetId = created.spreadsheetId;
+      url = created.spreadsheetUrl;
+    }
+
+    await sheets.writeTabs(token, spreadsheetId, tabs);
+    await sheets.formatHeader(token, spreadsheetId, tabs);
+
+    const shareWith = process.env.GOOGLE_SHARE_WITH;
+    if (shareWith) {
+      try {
+        await sheets.shareWith(token, spreadsheetId, shareWith);
+      } catch (error) {
+        console.warn('[sheets] แชร์ไม่สำเร็จ:', error.message);
+      }
+    }
+
+    run(
+      `INSERT INTO sheet_exports (activity_id, spreadsheet_id, url, created_at)
+       VALUES (?, ?, ?, ?)
+       ON CONFLICT(activity_id) DO UPDATE SET
+         spreadsheet_id = excluded.spreadsheet_id,
+         url = excluded.url,
+         created_at = excluded.created_at`,
+      activity.id,
+      spreadsheetId,
+      url,
+      now()
+    );
+
+    res.json({ url, spreadsheet_id: spreadsheetId, updated: !!existing, shared_with: shareWith || null });
+  } catch (error) {
+    console.error('[sheets]', error);
+    res.status(502).json({ error: error.message });
   }
 });
 

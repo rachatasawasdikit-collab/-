@@ -1047,6 +1047,12 @@
     });
   });
 
+  route('POST', /^\/api\/teacher\/activities\/(\d+)\/export-sheet$/, (user) => {
+    if (!user) return notLoggedIn();
+    if (user.role !== 'teacher') return wrongRole();
+    return fail(400, 'โหมดสาธิตไม่รองรับ Google Sheets — กดปุ่ม "เชื่อมเซิร์ฟเวอร์" เพื่อต่อกับเซิร์ฟเวอร์จริงก่อน');
+  });
+
   route('GET', /^\/api\/files\/\d+$/, (user) => {
     if (!user) return notLoggedIn();
     return fail(404, 'โหมดสาธิตไม่รองรับการเปิดไฟล์แนบ');

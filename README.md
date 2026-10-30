@@ -102,6 +102,21 @@ npm run seed     # สร้างข้อมูลตัวอย่างใ�
 | `PORT` | `3000` | พอร์ตเซิร์ฟเวอร์ |
 | `HOST` | `0.0.0.0` | อินเทอร์เฟซที่รับการเชื่อมต่อ |
 | `DATA_DIR` | `./data` | ตำแหน่งฐานข้อมูลและไฟล์แนบ |
+## ส่งออกไป Google Sheets
+
+1. สร้าง Service Account ที่ <https://console.cloud.google.com/> → เปิดใช้ **Google Sheets API** และ **Google Drive API**
+2. สร้างคีย์แบบ JSON แล้วบันทึกเป็น `data/google-service-account.json`
+3. แชร์ชีตให้อีเมลของ service account (ถ้าอยากให้เขียนลงชีตที่มีอยู่แล้ว) หรือให้ระบบสร้างชีตใหม่เอง
+4. ตั้งค่า `GOOGLE_SHARE_WITH=you@gmail.com` เพื่อให้ชีตที่สร้างใหม่ถูกแชร์กลับมาให้คุณอัตโนมัติ
+5. ในหน้าใบกิจกรรม กด **ส่งไป Google Sheets** หรือรัน `npm run export:sheet -- 1`
+
+ถ้าไม่ตั้ง `GOOGLE_SHARE_WITH` ชีตจะอยู่ภายใต้บัญชี service account และคุณจะเปิดดูไม่ได้จนกว่าจะแชร์
+
+| ตัวแปร | ความหมาย |
+| --- | --- |
+| `GOOGLE_APPLICATION_CREDENTIALS` | path ของไฟล์คีย์ (ค่าเริ่มต้น `data/google-service-account.json`) |
+| `GOOGLE_SHARE_WITH` | อีเมลที่จะแชร์ชีตที่สร้างใหม่ให้ (สิทธิ์แก้ไข) |
+
 | `CORS_ORIGINS` | `https://rachatasawasdikit-collab.github.io` | รายการ origin ที่อนุญาตให้เว็บภายนอกเรียก API คั่นด้วยจุลภาค เช่น `https://rachatasawasdikit-collab.github.io` |
 
 ตัวอย่าง: `PORT=8080 npm start`

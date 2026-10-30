@@ -91,6 +91,13 @@ CREATE TABLE IF NOT EXISTS submission_scores (
   PRIMARY KEY (submission_id, rubric_item_id)
 );
 
+CREATE TABLE IF NOT EXISTS sheet_exports (
+  activity_id INTEGER PRIMARY KEY REFERENCES activities(id) ON DELETE CASCADE,
+  spreadsheet_id TEXT NOT NULL,
+  url TEXT NOT NULL,
+  created_at TEXT NOT NULL
+);
+
 CREATE INDEX IF NOT EXISTS idx_members_student ON members(student_id);
 CREATE INDEX IF NOT EXISTS idx_activities_class ON activities(class_id);
 CREATE INDEX IF NOT EXISTS idx_submissions_activity ON submissions(activity_id);

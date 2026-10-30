@@ -10,7 +10,8 @@
     "dev": "node --disable-warning=ExperimentalWarning --watch server/index.js",
     "seed": "node --disable-warning=ExperimentalWarning scripts/seed.js",
     "reset": "node scripts/reset.js",
-    "build:demo": "node scripts/build-demo.js"
+    "build:demo": "node scripts/build-demo.js",
+    "export:sheet": "node --disable-warning=ExperimentalWarning scripts/export-sheet.js"
   },
   "engines": {
     "node": ">=22.14"

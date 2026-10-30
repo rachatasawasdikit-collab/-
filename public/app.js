@@ -779,6 +779,7 @@ function paintTeacherActivity() {
       </div>
       <div class="page-actions">
         <a class="btn btn-ghost" href="/api/teacher/activities/${activity.id}/export.csv" download>${icon('download')}ส่งออก CSV</a>
+        <button type="button" class="btn btn-ghost" data-export-sheet="${activity.id}">${icon('chart')}ส่งไป Google Sheets</button>
       </div>
     </div>    <div class="stats-grid">
       <div class="stat"><div class="stat-icon">${icon('users')}</div><div><div class="stat-value">${total}</div><div class="stat-label">นักเรียนในห้อง</div></div></div>
@@ -1800,3 +1801,27 @@ window.addEventListener('hashchange', renderRoute);
   }
   renderRoute();
 })();
+
+/* ------------------------- Google Sheets export ------------------------- */
+/* data-export-sheet-handler */
+document.addEventListener('click', async (event) => {
+  const button =
+    event.target && event.target.closest ? event.target.closest('[data-export-sheet]') : null;
+  if (!button) return;
+  event.preventDefault();
+
+  const activityId = button.getAttribute('data-export-sheet');
+  const original = button.innerHTML;
+  button.disabled = true;
+  button.innerHTML = 'กำลังสร้างชีต...';
+  try {
+    const data = await api('/api/teacher/activities/' + activityId + '/export-sheet', { method: 'POST' });
+    toast(data.updated ? 'อัปเดต Google Sheet แล้ว' : 'สร้าง Google Sheet แล้ว');
+    window.open(data.url, '_blank', 'noopener');
+  } catch (error) {
+    toast(error.message, 'error');
+  } finally {
+    button.disabled = false;
+    button.innerHTML = original;
+  }
+});
