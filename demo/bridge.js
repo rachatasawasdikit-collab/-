@@ -26,6 +26,23 @@
 
   const readBase = () => (localStorage.getItem(BASE_KEY) || '').replace(/\/+$/, '');
   let base = readBase();
+  let configPromise = null;
+
+  if (!base) {
+    configPromise = (async () => {
+      try {
+        const response = await nativeFetch('config.json', { cache: 'no-store' });
+        if (!response.ok) return;
+        const json = await response.json();
+        if (json && json.api) {
+          base = String(json.api).replace(/\/+$/, '');
+          localStorage.setItem(BASE_KEY, base);
+        }
+      } catch (error) {
+        /* ไม่มี config.json ก็ใช้โหมดสาธิตต่อ */
+      }
+    })();
+  }
 
   function pathOf(input) {
     const raw = typeof input === 'string' ? input : input && input.url ? input.url : '';
@@ -39,6 +56,11 @@
   }
 
   window.fetch = async function (input, init) {
+    if (configPromise) {
+      await configPromise;
+      configPromise = null;
+      paintBadge();
+    }
     const path = pathOf(input);
     if (!path || !base) return previousFetch(input, init);
 
@@ -68,6 +90,11 @@
   document.addEventListener(
     'click',
     async (event) => {
+      if (configPromise) {
+        await configPromise;
+        configPromise = null;
+        paintBadge();
+      }
       if (!base) return;
       const anchor =
         event.target && event.target.closest ? event.target.closest('a[href^="/api/"]') : null;
