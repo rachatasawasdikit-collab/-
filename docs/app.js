@@ -617,7 +617,7 @@ function paintTeacherClass() {
     ? `<div class="table-wrap">
         <table>
           <thead>
-            <tr><th>นักเรียน</th><th>ชื่อผู้ใช้</th><th>เข้าร่วมเมื่อ</th><th>งานที่ตรวจแล้ว</th><th>รายการที่มีข้อมูล</th></tr>
+            <tr><th>นักเรียน</th><th>ชื่อผู้ใช้</th><th>เข้าร่วมเมื่อ</th><th>งานที่ตรวจแล้ว</th><th>รายการที่มีข้อมูล</th><th></th></tr>
           </thead>
           <tbody>
             ${students
@@ -634,6 +634,9 @@ function paintTeacherClass() {
                 <td class="muted nowrap">${fmtDate(student.joined_at)}</td>
                 <td><span class="chip chip-green">${student.reviewed_count} งาน</span></td>
                 <td class="muted">${student.record_count} รายการ</td>
+                <td class="nowrap">
+                  <button class="btn btn-ghost btn-sm" data-remove-student="${student.id}" data-student-name="${esc(student.name)}">${icon('x')}ลบ</button>
+                </td>
               </tr>`
               )
               .join('')}
@@ -668,6 +671,7 @@ function paintTeacherClass() {
         <div class="page-actions">
           <button class="btn btn-ghost" data-action="open-add-student">${icon('users')}เพิ่มนักเรียน</button>
           <button class="btn btn-primary" data-action="open-create-activity">${icon('plus')}สร้างใบกิจกรรม</button>
+          <button class="btn btn-ghost" data-action="delete-class">${icon('x')}ลบห้องเรียน</button>
         </div>
       </div>
     </section>
@@ -699,6 +703,39 @@ function paintTeacherClass() {
   });
   appEl.querySelectorAll('[data-copy]').forEach((btn) => {
     btn.addEventListener('click', () => copyText(btn.dataset.copy));
+  });
+  appEl.querySelectorAll('[data-action="delete-class"]').forEach((btn) => {
+    btn.addEventListener('click', async () => {
+      const message =
+        'ลบห้อง "' + klass.name + '" พร้อมใบกิจกรรม งานที่ส่ง และคะแนนทั้งหมด?\nการลบนี้ย้อนกลับไม่ได้';
+      if (!window.confirm(message)) return;
+      btn.disabled = true;
+      try {
+        await api('/api/teacher/classes/' + klass.id, { method: 'DELETE' });
+        toast('ลบห้องเรียนแล้ว');
+        go('#/teacher');
+      } catch (error) {
+        toast(error.message, 'error');
+        btn.disabled = false;
+      }
+    });
+  });
+  appEl.querySelectorAll('[data-remove-student]').forEach((btn) => {
+    btn.addEventListener('click', async () => {
+      const studentId = btn.getAttribute('data-remove-student');
+      const name = btn.getAttribute('data-student-name') || 'นักเรียนคนนี้';
+      const message = 'ลบ ' + name + ' ออกจากห้องนี้?\nงานที่ส่งในห้องนี้จะถูกลบไปด้วย';
+      if (!window.confirm(message)) return;
+      btn.disabled = true;
+      try {
+        await api('/api/teacher/classes/' + klass.id + '/students/' + studentId, { method: 'DELETE' });
+        toast('ลบนักเรียนออกจากห้องแล้ว');
+        renderTeacherClass(klass.id);
+      } catch (error) {
+        toast(error.message, 'error');
+        btn.disabled = false;
+      }
+    });
   });
 }
 

@@ -582,6 +582,42 @@
     return json(200, { class: klass, students, activities });
   });
 
+  route('DELETE', /^\/api\/teacher\/classes\/(\d+)$/, (user, _body, params) => {
+    if (!user) return notLoggedIn();
+    if (user.role !== 'teacher') return wrongRole();
+    const klass = owner(params[0], user);
+    if (!klass) return fail(404, 'ไม่พบห้องเรียนนี้');
+    const activities = db.activities.filter((a) => a.class_id === klass.id).map((a) => a.id);
+    db.submissions = db.submissions.filter((s) => !activities.includes(s.activity_id));
+    db.submission_scores = db.submission_scores.filter((row) =>
+      db.submissions.some((s) => s.id === row.submission_id)
+    );
+    db.activities = db.activities.filter((a) => a.class_id !== klass.id);
+    db.rubric_items = db.rubric_items.filter((item) => db.activities.some((a) => a.id === item.activity_id));
+    db.members = db.members.filter((m) => m.class_id !== klass.id);
+    db.classes = db.classes.filter((c) => c.id !== klass.id);
+    save(db);
+    return new Response(null, { status: 204 });
+  });
+
+  route('DELETE', /^\/api\/teacher\/classes\/(\d+)\/students\/(\d+)$/, (user, _body, params) => {
+    if (!user) return notLoggedIn();
+    if (user.role !== 'teacher') return wrongRole();
+    const klass = owner(params[0], user);
+    if (!klass) return fail(404, 'ไม่พบห้องเรียนนี้');
+    const studentId = Number(params[1]);
+    if (!isMember(klass.id, studentId)) return fail(404, 'ไม่พบนักเรียนคนนี้ในห้องเรียน');
+    const activities = db.activities.filter((a) => a.class_id === klass.id).map((a) => a.id);
+    const removed = db.submissions
+      .filter((s) => s.student_id === studentId && activities.includes(s.activity_id))
+      .map((s) => s.id);
+    db.submissions = db.submissions.filter((s) => !removed.includes(s.id));
+    db.submission_scores = db.submission_scores.filter((row) => !removed.includes(row.submission_id));
+    db.members = db.members.filter((m) => !(m.class_id === klass.id && m.student_id === studentId));
+    save(db);
+    return new Response(null, { status: 204 });
+  });
+
   route('POST', /^\/api\/teacher\/classes\/(\d+)\/students$/, (user, body, params) => {
     if (!user) return notLoggedIn();
     if (user.role !== 'teacher') return wrongRole();

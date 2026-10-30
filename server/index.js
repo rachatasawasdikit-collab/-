@@ -323,6 +323,62 @@ app.get('/api/teacher/classes/:id', requireRole('teacher'), (req, res) => {
   res.json({ class: klass, students, activities });
 });
 
+app.delete('/api/teacher/classes/:id', requireRole('teacher'), (req, res) => {
+  const klass = teacherClass(req.params.id, req.user.id);
+  if (!klass) return res.status(404).json({ error: 'ไม่พบห้องเรียนนี้' });
+
+  const files = all(
+    `SELECT s.file_name FROM submissions s
+       JOIN activities a ON a.id = s.activity_id
+      WHERE a.class_id = ? AND s.file_name IS NOT NULL`,
+    klass.id
+  );
+
+  run('DELETE FROM classes WHERE id = ?', klass.id);
+
+  for (const row of files) {
+    fs.rmSync(path.join(UPLOAD_DIR, path.basename(row.file_name)), { force: true });
+  }
+  res.status(204).end();
+});
+
+app.delete('/api/teacher/classes/:id/students/:studentId', requireRole('teacher'), (req, res) => {
+  const klass = teacherClass(req.params.id, req.user.id);
+  if (!klass) return res.status(404).json({ error: 'ไม่พบห้องเรียนนี้' });
+
+  const studentId = Number(req.params.studentId);
+  if (!isMember(klass.id, studentId)) {
+    return res.status(404).json({ error: 'ไม่พบนักเรียนคนนี้ในห้องเรียน' });
+  }
+
+  const files = all(
+    `SELECT s.file_name FROM submissions s
+       JOIN activities a ON a.id = s.activity_id
+      WHERE a.class_id = ? AND s.student_id = ? AND s.file_name IS NOT NULL`,
+    klass.id,
+    studentId
+  );
+
+  db.exec('BEGIN IMMEDIATE');
+  try {
+    run(
+      'DELETE FROM submissions WHERE student_id = ? AND activity_id IN (SELECT id FROM activities WHERE class_id = ?)',
+      studentId,
+      klass.id
+    );
+    run('DELETE FROM members WHERE class_id = ? AND student_id = ?', klass.id, studentId);
+    db.exec('COMMIT');
+  } catch (error) {
+    db.exec('ROLLBACK');
+    throw error;
+  }
+
+  for (const row of files) {
+    fs.rmSync(path.join(UPLOAD_DIR, path.basename(row.file_name)), { force: true });
+  }
+  res.status(204).end();
+});
+
 app.post('/api/teacher/classes/:id/students', requireRole('teacher'), (req, res) => {
   const klass = teacherClass(req.params.id, req.user.id);
   if (!klass) return res.status(404).json({ error: 'ไม่พบห้องเรียนนี้' });
