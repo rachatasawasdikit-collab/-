@@ -1,6 +1,18 @@
 # ตรวจใบกิจกรรม (Activity Check)
 
+[![Open in GitHub Codespaces](https://github.com/codespaces/badge.svg)](https://codespaces.new/rachatasawasdikit-collab/activity-sheet-checker)
+[![Live demo](https://img.shields.io/badge/ลองใช้-สาธิต-0e6b5b)](https://rachatasawasdikit-collab.github.io/activity-sheet-checker/)
+
 ระบบตรวจใบกิจกรรมออนไลน์สำหรับครูและนักเรียน ใช้งานบนเบราว์เซอร์ ทำงานเป็นเซิร์ฟเวอร์เดียวกับฐานข้อมูล SQLite จึงใช้ได้หลายเครื่องในเครือข่ายเดียวกัน
+
+## ลองใช้งานออนไลน์
+
+| แบบ | ลิงก์ | หมายเหตุ |
+| --- | --- | --- |
+| **สาธิต** (ไม่ต้องติดตั้ง) | <https://rachatasawasdikit-collab.github.io/activity-sheet-checker/> | รันบน GitHub Pages ด้วย backend จำลอง (demo/demo-api.js) ข้อมูลเก็บใน localStorage ของแต่ละคน ไม่แชร์กัน ใช้บัญชีตัวอย่างด้านล่างได้เลย |
+| **ตัวจริง** (Node + SQLite) | ปุ่ม *Open in GitHub Codespaces* ด้านบน | เปิด Codespace แล้วเซิร์ฟเวอร์สตาร์ทเองที่พอร์ต 3000 (public) — ใช้ข้อมูลจริงใน data/ ของ Codespace |
+
+โหมดสาธิตสร้างใหม่ได้ด้วย `npm run build:demo` (คัดลอก `public/` → `docs/` แล้วแทรก `demo-api.js`)
 
 ## ฟีเจอร์
 

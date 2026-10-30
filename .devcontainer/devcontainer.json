@@ -1,0 +1,20 @@
+{
+  "name": "Activity Check (ตรวจใบกิจกรรม)",
+  "image": "mcr.microsoft.com/devcontainers/javascript-node:22",
+  "postCreateCommand": "npm install && npm run seed",
+  "postStartCommand": "pgrep -f 'server/index.js' >/dev/null || (nohup npm start > /tmp/activity-check.log 2>&1 &) ; sleep 2",
+  "forwardPorts": [3000],
+  "portsAttributes": {
+    "3000": {
+      "label": "ตรวจใบกิจกรรม",
+      "onAutoForward": "public",
+      "elevateIfNeeded": true
+    }
+  },
+  "customizations": {
+    "vscode": {
+      "extensions": ["dbaeumer.vscode-eslint", "esbenp.prettier-vscode"]
+    }
+  },
+  "remoteUser": "node"
+}
