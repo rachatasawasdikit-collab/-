@@ -9,6 +9,7 @@ const fs = require('node:fs');
 
 const { buildActivityTabs } = require('../server/sheet-data');
 const sheets = require('../server/sheets');
+const sheetWebhook = require('../server/sheet-webhook');
 const { db, get, run } = require('../server/db');
 
 const now = () => new Date().toISOString();
@@ -18,6 +19,20 @@ async function main() {
   if (!activityId) {
     console.error('ระบุรหัสใบกิจกรรม: npm run export:sheet -- 1');
     process.exit(1);
+  }
+
+  const tabs = buildActivityTabs(activityId);
+
+  if (process.env.SHEET_WEBHOOK_URL) {
+    const result = await sheetWebhook.pushToWebhook(
+      process.env.SHEET_WEBHOOK_URL,
+      process.env.SHEET_WEBHOOK_SECRET,
+      tabs
+    );
+    console.log('ส่งข้อมูลไป Apps Script แล้ว:', (result.tabs || []).join(', '));
+    console.log('ลิงก์:', result.url || process.env.SHEET_WEBHOOK_URL);
+    db.close();
+    return;
   }
 
   const creds = sheets.loadCredentials();
@@ -31,7 +46,6 @@ async function main() {
   const token = await sheets.getAccessToken(creds);
   console.log('ได้ access token แล้ว');
 
-  const tabs = buildActivityTabs(activityId);
   console.log('เตรียมแท็บ:', tabs.map((tab) => tab.title + '(' + (tab.values.length - 1) + ' แถว)').join(', '));
 
   const existing = get('SELECT * FROM sheet_exports WHERE activity_id = ?', activityId);
