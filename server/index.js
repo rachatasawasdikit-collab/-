@@ -8,6 +8,7 @@ const multer = require('multer');
 
 const { db, all, get, run, UPLOAD_DIR, ROOT } = require('./db');
 const sheets = require('./sheets');
+const sheetWebhook = require('./sheet-webhook');
 const { buildActivityTabs } = require('./sheet-data');
 const {
   hashPassword,
@@ -687,6 +688,21 @@ app.post('/api/teacher/activities/:id/export-sheet', requireRole('teacher'), asy
     if (access.error) return res.status(access.error[0]).json({ error: access.error[1] });
     const activity = access.activity;
 
+    const tabs = buildActivityTabs(activity.id);
+
+    if (process.env.SHEET_WEBHOOK_URL) {
+      const result = await sheetWebhook.pushToWebhook(
+        process.env.SHEET_WEBHOOK_URL,
+        process.env.SHEET_WEBHOOK_SECRET,
+        tabs
+      );
+      return res.json({
+        url: result.url || 'https://docs.google.com/spreadsheets',
+        mode: 'apps-script',
+        tabs: result.tabs || [],
+      });
+    }
+
     let creds;
     try {
       creds = sheets.loadCredentials();
@@ -701,7 +717,6 @@ app.post('/api/teacher/activities/:id/export-sheet', requireRole('teacher'), asy
     }
 
     const token = await sheets.getAccessToken(creds);
-    const tabs = buildActivityTabs(activity.id);
     const existing = get('SELECT * FROM sheet_exports WHERE activity_id = ?', activity.id);
 
     let spreadsheetId;
