@@ -24,12 +24,35 @@ const HOST = process.env.HOST || '0.0.0.0';
 const PUBLIC_DIR = path.join(ROOT, 'public');
 
 app.disable('x-powered-by');
+
+/* ----------------------------- CORS (Pages) ----------------------------- */
+
+const CORS_ORIGINS = String(process.env.CORS_ORIGINS || '')
+  .split(',')
+  .map((item) => item.trim())
+  .filter(Boolean);
+
+const isCorsOrigin = (origin) => !!origin && CORS_ORIGINS.includes(origin);
+
+app.use((req, res, next) => {
+  const origin = req.headers.origin;
+  if (isCorsOrigin(origin)) {
+    res.setHeader('Access-Control-Allow-Origin', origin);
+    res.setHeader('Vary', 'Origin');
+    res.setHeader('Access-Control-Allow-Credentials', 'true');
+    res.setHeader('Access-Control-Allow-Headers', 'authorization, content-type');
+    res.setHeader('Access-Control-Allow-Methods', 'GET, POST, PATCH, DELETE, OPTIONS');
+    res.setHeader('Access-Control-Max-Age', '600');
+    if (req.method === 'OPTIONS') return res.status(204).end();
+  }
+  next();
+});
 app.use(express.json({ limit: '1mb' }));
 app.use(express.urlencoded({ extended: false, limit: '1mb' }));
 app.use((req, res, next) => {
   if (['GET', 'HEAD', 'OPTIONS'].includes(req.method)) return next();
   const origin = req.headers.origin;
-  if (origin) {
+  if (origin && !isCorsOrigin(origin)) {
     try {
       if (new URL(origin).host !== req.headers.host) {
         return res.status(403).json({ error: 'คำขอไม่ได้มาจากเว็บไซต์นี้' });
@@ -166,8 +189,11 @@ app.post('/api/auth/register', (req, res) => {
     now()
   );
   const userId = Number(result.lastInsertRowid);
-  createSession(res, userId);
-  res.status(201).json({ user: publicUser(get('SELECT * FROM users WHERE id = ?', userId)) });
+  const token = createSession(res, userId);
+  res.status(201).json({
+    user: publicUser(get('SELECT * FROM users WHERE id = ?', userId)),
+    token,
+  });
 });
 
 const loginAttempts = new Map();
@@ -202,8 +228,11 @@ app.post('/api/auth/login', (req, res) => {
     return res.status(401).json({ error: 'ชื่อผู้ใช้หรือรหัสผ่านไม่ถูกต้อง' });
   }
   loginAttempts.delete(key);
-  createSession(res, user.id);
-  res.json({ user: publicUser(user) });
+  const token = createSession(res, user.id);
+  res.json({
+    user: publicUser(user),
+    token,
+  });
 });
 
 app.post('/api/auth/logout', (req, res) => {

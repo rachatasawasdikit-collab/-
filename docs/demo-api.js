@@ -949,6 +949,7 @@
   /* ------------------------------- runtime ------------------------------ */
 
   const realFetch = window.fetch.bind(window);
+  window.__demoRealFetch = realFetch;
 
   function pathOf(input) {
     const raw = typeof input === 'string' ? input : input && input.url ? input.url : '';
@@ -1008,6 +1009,7 @@
     (event) => {
       const anchor = event.target && event.target.closest ? event.target.closest('a[href*="/export.csv"]') : null;
       if (!anchor) return;
+      if (window.localStorage.getItem('activity-api-base')) return;
       event.preventDefault();
       const match = (anchor.getAttribute('href') || '').match(/activities\/(\d+)\/export\.csv/);
       if (!match) return;

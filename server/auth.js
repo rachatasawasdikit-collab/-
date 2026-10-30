@@ -44,13 +44,19 @@ function createSession(res, userId) {
 }
 
 function destroySession(req, res) {
-  const token = parseCookies(req.headers.cookie)[SESSION_COOKIE];
+  const token = requestToken(req);
   if (token) run('DELETE FROM sessions WHERE token = ?', token);
   res.setHeader('Set-Cookie', `${SESSION_COOKIE}=; Path=/; HttpOnly; SameSite=Lax; Max-Age=0`);
 }
 
+function requestToken(req) {
+  const header = String(req.headers.authorization || '');
+  const bearer = header.toLowerCase().startsWith('bearer ') ? header.slice(7).trim() : '';
+  return bearer || parseCookies(req.headers.cookie)[SESSION_COOKIE];
+}
+
 function currentUser(req) {
-  const token = parseCookies(req.headers.cookie)[SESSION_COOKIE];
+  const token = requestToken(req);
   if (!token) return null;
   return (
     get(

@@ -12,7 +12,18 @@
 | **สาธิต** (ไม่ต้องติดตั้ง) | <https://rachatasawasdikit-collab.github.io/activity-sheet-checker/> | รันบน GitHub Pages ด้วย backend จำลอง (demo/demo-api.js) ข้อมูลเก็บใน localStorage ของแต่ละคน ไม่แชร์กัน ใช้บัญชีตัวอย่างด้านล่างได้เลย |
 | **ตัวจริง** (Node + SQLite) | ปุ่ม *Open in GitHub Codespaces* ด้านบน | เปิด Codespace แล้วเซิร์ฟเวอร์สตาร์ทเองที่พอร์ต 3000 (public) — ใช้ข้อมูลจริงใน data/ ของ Codespace |
 
-โหมดสาธิตสร้างใหม่ได้ด้วย `npm run build:demo` (คัดลอก `public/` → `docs/` แล้วแทรก `demo-api.js`)
+โหมดสาธิตสร้างใหม่ได้ด้วย `npm run build:demo` (คัดลอก `public/` → `docs/` แล้วแทรก `demo-api.js` + `bridge.js`)
+
+### เชื่อมหน้า Pages เข้ากับเซิร์ฟเวอร์จริง
+
+1. เปิดเซิร์ฟเวอร์ให้เข้าถึงจากอินเทอร์เน็ตได้ เช่น `cloudflared tunnel --url http://localhost:3000`
+2. สตาร์ทเซิร์ฟเวอร์โดยอนุญาต origin ของ Pages:
+   `CORS_ORIGINS=https://rachatasawasdikit-collab.github.io npm start`
+3. เปิดหน้า Pages แล้วกด **เชื่อมเซิร์ฟเวอร์** มุมล่างซ้าย ใส่ URL ของเซิร์ฟเวอร์
+   หรือเปิด `<pages-url>?api=https://xxxx.trycloudflare.com`
+
+เมื่อเชื่อมแล้วหน้า Pages จะเลิกใช้ข้อมูลจำลอง แล้วเรียก API จริงด้วย Bearer token
+(ไม่ใช้ cookie เพราะเบราว์เซอร์บล็อก third-party cookie ข้ามโดเมน) — ครูและนักเรียนคนละเครื่องจึงเห็นข้อมูลชุดเดียวกัน
 
 ## ฟีเจอร์
 
@@ -89,6 +100,7 @@ npm run seed     # สร้างข้อมูลตัวอย่างใ�
 | `PORT` | `3000` | พอร์ตเซิร์ฟเวอร์ |
 | `HOST` | `0.0.0.0` | อินเทอร์เฟซที่รับการเชื่อมต่อ |
 | `DATA_DIR` | `./data` | ตำแหน่งฐานข้อมูลและไฟล์แนบ |
+| `CORS_ORIGINS` | (ว่าง) | รายการ origin ที่อนุญาตให้เว็บภายนอกเรียก API คั่นด้วยจุลภาค เช่น `https://rachatasawasdikit-collab.github.io` |
 
 ตัวอย่าง: `PORT=8080 npm start`
 

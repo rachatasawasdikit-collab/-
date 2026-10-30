@@ -22,6 +22,7 @@ for (const file of ['app.js', 'styles.css']) {
   fs.copyFileSync(path.join(SRC, file), path.join(OUT, file));
 }
 fs.copyFileSync(path.join(DEMO, 'demo-api.js'), path.join(OUT, 'demo-api.js'));
+fs.copyFileSync(path.join(DEMO, 'bridge.js'), path.join(OUT, 'bridge.js'));
 
 let html = fs.readFileSync(path.join(SRC, 'index.html'), 'utf8');
 
@@ -29,7 +30,7 @@ html = html
   .replace('href="/styles.css"', 'href="styles.css"')
   .replace(
     '<script src="/app.js" defer></script>',
-    '<script src="demo-api.js" defer></script>\n    <script src="app.js" defer></script>'
+    '<script src="demo-api.js" defer></script>\n    <script src="bridge.js" defer></script>\n    <script src="app.js" defer></script>'
   )
   .replace('<title>', '<title>สาธิต · ');
 
