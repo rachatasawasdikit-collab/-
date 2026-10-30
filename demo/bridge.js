@@ -19,6 +19,9 @@
   const params = new URLSearchParams(window.location.search);
   if (params.get('api')) {
     localStorage.setItem(BASE_KEY, params.get('api').replace(/\/+$/, ''));
+    params.delete('api');
+    const left = params.toString();
+    window.history.replaceState(null, '', window.location.pathname + (left ? '?' + left : '') + window.location.hash);
   }
 
   const readBase = () => (localStorage.getItem(BASE_KEY) || '').replace(/\/+$/, '');
