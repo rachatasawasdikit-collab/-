@@ -103,9 +103,11 @@ function buildActivityTabs(activityId) {
     ];
   });
 
+  const shortTitle = String(activity.title).replace(/^ใบกิจกรรมที่\s*\d+\s*·\s*/, '').slice(0, 28);
+
   return [
-    { title: 'สรุป', values: summary },
-    { title: 'ผลตรวจ', values: [header, ...detail] },
+    { title: 'สรุป · ' + shortTitle, values: summary },
+    { title: 'ผลตรวจ · ' + shortTitle, values: [header, ...detail] },
   ];
 }
 
