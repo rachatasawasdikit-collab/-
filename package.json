@@ -1,0 +1,21 @@
+{
+  "name": "activity-sheet-checker",
+  "version": "1.0.0",
+  "private": true,
+  "description": "ระบบตรวจใบกิจกรรมสำหรับครูและนักเรียน",
+  "type": "commonjs",
+  "main": "server/index.js",
+  "scripts": {
+    "start": "node --disable-warning=ExperimentalWarning server/index.js",
+    "dev": "node --disable-warning=ExperimentalWarning --watch server/index.js",
+    "seed": "node --disable-warning=ExperimentalWarning scripts/seed.js",
+    "reset": "node scripts/reset.js"
+  },
+  "engines": {
+    "node": ">=22.14"
+  },
+  "dependencies": {
+    "express": "^5.1.0",
+    "multer": "^2.0.2"
+  }
+}
