@@ -281,10 +281,23 @@
     user ? { id: user.id, role: user.role, name: user.name, username: user.username } : null;
 
   const SESSION_KEY = 'activity-check-demo-session';
-  const sessionId = () => Number(window.sessionStorage.getItem(SESSION_KEY) || 0) || null;
+  /* จำการล็อกอินไว้ใน localStorage เพื่อให้ปิดเบราว์เซอร์แล้วยังเข้าได้ */
+  const readSession = () => {
+    try {
+      return window.localStorage.getItem(SESSION_KEY) || window.sessionStorage.getItem(SESSION_KEY) || '';
+    } catch (error) {
+      return window.sessionStorage.getItem(SESSION_KEY) || '';
+    }
+  };
+  const sessionId = () => Number(readSession() || 0) || null;
   const setSession = (id) => {
-    if (id) window.sessionStorage.setItem(SESSION_KEY, String(id));
-    else window.sessionStorage.removeItem(SESSION_KEY);
+    try {
+      if (id) window.localStorage.setItem(SESSION_KEY, String(id));
+      else window.localStorage.removeItem(SESSION_KEY);
+    } catch (error) {
+      /* ignore */
+    }
+    window.sessionStorage.removeItem(SESSION_KEY);
   };
   const currentUser = () => {
     const id = sessionId();

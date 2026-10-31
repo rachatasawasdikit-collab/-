@@ -15,6 +15,35 @@
   const BASE_KEY = 'activity-api-base';
   const MODE_KEY = 'activity-api-mode';
   const TOKEN_KEY = 'activity-api-token';
+
+  /* เก็บ token ไว้ใน localStorage เพื่อให้ล็อกอินค้างไว้ได้ 30 วัน
+     (อ่าน sessionStorage เดิมด้วย เผื่อผู้ใช้เคยล็อกอินไว้ก่อนอัปเดต) */
+  function readToken() {
+    try {
+      return localStorage.getItem(TOKEN_KEY) || sessionStorage.getItem(TOKEN_KEY) || '';
+    } catch (error) {
+      return sessionStorage.getItem(TOKEN_KEY) || '';
+    }
+  }
+
+  function saveToken(token) {
+    try {
+      localStorage.setItem(TOKEN_KEY, token);
+    } catch (error) {
+      sessionStorage.setItem(TOKEN_KEY, token);
+    }
+    sessionStorage.removeItem(TOKEN_KEY);
+  }
+
+  function clearToken() {
+    try {
+      localStorage.removeItem(TOKEN_KEY);
+    } catch (error) {
+      /* ignore */
+    }
+    sessionStorage.removeItem(TOKEN_KEY);
+  }
+
   const nativeFetch = (window.__demoRealFetch || window.fetch).bind(window);
   const previousFetch = window.fetch.bind(window);
 
@@ -178,7 +207,7 @@
   /* ------------------------ Apps Script protocol --------------------- */
 
   async function scriptRequest(path, method, body, file) {
-    const token = sessionStorage.getItem(TOKEN_KEY) || '';
+    const token = readToken();
 
     if (method === 'GET') {
       const url =
@@ -243,12 +272,22 @@
         .clone()
         .json()
         .then((data) => {
-          if (data && data.token) sessionStorage.setItem(TOKEN_KEY, data.token);
+          if (data && data.token) saveToken(data.token);
         })
         .catch(() => {});
     }
     if (/\/api\/auth\/logout$/.test(path)) {
-      sessionStorage.removeItem(TOKEN_KEY);
+      clearToken();
+    }
+    if (/\/api\/me$/.test(path) && response.ok) {
+      response
+        .clone()
+        .json()
+        .then((data) => {
+          /* token หมดอายุ/ถูกยกเลิกแล้ว — ลบทิ้งเพื่อไม่ให้ค้างในเครื่อง */
+          if (!data || !data.user) clearToken();
+        })
+        .catch(() => {});
     }
   }
 
@@ -290,7 +329,7 @@
       credentials: 'same-origin',
       headers: options.headers || {},
     };
-    const token = sessionStorage.getItem(TOKEN_KEY);
+    const token = readToken();
     if (token) fetchOptions.headers.Authorization = 'Bearer ' + token;
 
     if (options.body instanceof FormData) {
@@ -309,7 +348,7 @@
 
   async function serverDownload(path) {
     const headers = {};
-    const token = sessionStorage.getItem(TOKEN_KEY);
+    const token = readToken();
     if (token) headers.Authorization = 'Bearer ' + token;
     const response = await nativeFetch(base + path, {
       headers: headers,
@@ -387,7 +426,7 @@
       if (base) {
         localStorage.removeItem(BASE_KEY);
         localStorage.removeItem(MODE_KEY);
-        sessionStorage.removeItem(TOKEN_KEY);
+        clearToken();
         window.location.reload();
         return;
       }
