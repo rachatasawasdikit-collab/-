@@ -1,7 +1,7 @@
 # ตรวจใบกิจกรรม (Activity Check)
 
 [![Open in GitHub Codespaces](https://github.com/codespaces/badge.svg)](https://codespaces.new/rachatasawasdikit-collab/activity-sheet-checker)
-[![Live demo](https://img.shields.io/badge/ลองใช้-สาธิต-0e6b5b)](https://rachatasawasdikit-collab.github.io/activity-sheet-checker/)
+[![Live demo](https://img.shields.io/badge/ลองใช้-สาธิต-0e6b5b)](https://rachatasawasdikit-collab.github.io/-/)
 
 ระบบตรวจใบกิจกรรมออนไลน์สำหรับครูและนักเรียน ใช้งานบนเบราว์เซอร์ ทำงานเป็นเซิร์ฟเวอร์เดียวกับฐานข้อมูล SQLite จึงใช้ได้หลายเครื่องในเครือข่ายเดียวกัน
 
@@ -9,10 +9,24 @@
 
 | แบบ | ลิงก์ | หมายเหตุ |
 | --- | --- | --- |
-| **สาธิต** (ไม่ต้องติดตั้ง) | <https://rachatasawasdikit-collab.github.io/activity-sheet-checker/> | รันบน GitHub Pages ด้วย backend จำลอง (demo/demo-api.js) ข้อมูลเก็บใน localStorage ของแต่ละคน ไม่แชร์กัน ใช้บัญชีตัวอย่างด้านล่างได้เลย |
+| **สาธิต** (ไม่ต้องติดตั้ง) | <https://rachatasawasdikit-collab.github.io/-/> | รันบน GitHub Pages ด้วย backend จำลอง (demo/demo-api.js) ข้อมูลเก็บใน localStorage ของแต่ละคน ไม่แชร์กัน ใช้บัญชีตัวอย่างด้านล่างได้เลย |
 | **ตัวจริง** (Node + SQLite) | ปุ่ม *Open in GitHub Codespaces* ด้านบน | เปิด Codespace แล้วเซิร์ฟเวอร์สตาร์ทเองที่พอร์ต 3000 (public) — ใช้ข้อมูลจริงใน data/ ของ Codespace |
 
 โหมดสาธิตสร้างใหม่ได้ด้วย `npm run build:demo` (คัดลอก `public/` → `docs/` แล้วแทรก `demo-api.js` + `bridge.js`)
+
+## ใช้งานออนไลน์ถาวรด้วย Google Apps Script
+
+ถ้าไม่ต้องการเปิดคอมพิวเตอร์ทิ้งไว้ ให้รัน backend บน Google Apps Script
+โดยใช้ Google Sheets เป็นฐานข้อมูลและ Google Drive เก็บไฟล์แนบ
+หน้าเว็บ/UI เดิมใช้ได้ทั้งหมด — ดูขั้นตอนติดตั้งใน
+[apps-script/README.md](apps-script/README.md)
+
+เมื่อติดตั้งแล้ว ให้ตั้ง `docs/config.json` เป็น
+`{ "api": "https://script.google.com/macros/s/XXXX/exec", "mode": "apps-script" }`
+แล้ว push ขึ้น GitHub Pages (หรือกดปุ่ม **เชื่อมเซิร์ฟเวอร์** ในหน้าเว็บแล้ววาง URL)
+
+ทดสอบ backend ในเครื่องได้ด้วย `npm run test:apps-script`
+และเปิดเว็บจำลองด้วย `npm run mock:apps-script` (พอร์ต 8787/8788)
 
 ### เชื่อมหน้า Pages เข้ากับเซิร์ฟเวอร์จริง
 
@@ -135,9 +149,13 @@ public/
   index.html   โครงหน้า SPA
   app.js       หน้าจอครู/นักเรียน
   styles.css   ธีมและเลย์เอาต์
+apps-script/
+  Code.gs      backend บน Google Apps Script (Google Sheets + Drive)
+  appsscript.json
 scripts/
   seed.js      ข้อมูลตัวอย่าง
   reset.js     ล้างฐานข้อมูล
+  test-apps-script.js  ทดสอบ Apps Script แบบออฟไลน์
 ```
 
 ## หมายเหตุด้านความปลอดภัย

@@ -42,7 +42,12 @@ if (html.includes('/styles.css') || html.includes('/app.js')) {
 fs.writeFileSync(path.join(OUT, 'index.html'), html);
 const apiBase = String(process.env.API_BASE || '').replace(/\/+$/, '');
 if (apiBase) {
-  fs.writeFileSync(path.join(OUT, 'config.json'), JSON.stringify({ api: apiBase }, null, 2) + '\n');
+  const apiMode =
+    process.env.API_MODE || (/^https:\/\/script\.google\.com\//.test(apiBase) ? 'apps-script' : 'server');
+  fs.writeFileSync(
+    path.join(OUT, 'config.json'),
+    JSON.stringify({ api: apiBase, mode: apiMode }, null, 2) + '\n'
+  );
 }
 
 fs.writeFileSync(path.join(OUT, '.nojekyll'), '');
